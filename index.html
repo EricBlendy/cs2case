@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS2 Case Opening Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1b2838;
+            color: #c7d5e0;
+            overflow: hidden;
+        }
+        .case-container {
+            border: 2px solid #2a475e;
+            background-color: #171a21;
+        }
+        .item-card {
+            min-width: 200px;
+            height: 220px;
+            background-color: #2a475e;
+            border: 4px solid transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s;
+            position: relative;
+            padding: 5px; /* Add some padding */
+        }
+        .item-card img {
+            max-width: 150px;
+            max-height: 120px;
+            image-rendering: -webkit-optimize-contrast;
+        }
+        .item-card-name {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 13px; /* Slightly smaller font */
+            color: #c7d5e0;
+            text-align: center; /* Ensure text is centered */
+            padding: 0 5px; /* Add horizontal padding */
+            word-break: break-word; /* Break long words */
+            line-height: 1.2; /* Adjust line height for wrapped text */
+        }
+        .item-card-rarity {
+             font-size: 12px;
+             color: #a0a0a0;
+             text-align: center; /* Ensure text is centered */
+        }
+
+        /* Rarity Colors */
+        .rarity-mil-spec { border-color: #4b69ff; } /* Blue */
+        .rarity-restricted { border-color: #8847ff; } /* Purple */
+        .rarity-classified { border-color: #d32ce6; } /* Pink */
+        .rarity-covert { border-color: #eb4b4b; } /* Red */
+        .rarity-rare { border-color: #ffd700; } /* Gold */
+
+        .roulette-container {
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .roulette {
+            display: flex;
+            transition: transform 7s cubic-bezier(0.2, 0.8, 0.2, 1); /* Smooth spin */
+        }
+        .ticker {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background-color: #ffde00;
+            box-shadow: 0 0 10px #ffde00, 0 0 20px #ffde00;
+            z-index: 10;
+        }
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #1b2838;
+            padding: 20px;
+            border: 2px solid #2a475e;
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .modal-item-name {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #ffde00; /* Gold color for StatTrak */
+        }
+        .modal-item-condition {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            margin-bottom: 1rem;
+        }
+        .modal-item-card-container .item-card {
+            width: 280px;
+            height: 300px;
+            margin: 0 auto 1rem;
+        }
+         .modal-item-card-container .item-card img {
+            max-width: 220px;
+            max-height: 180px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <h1 class="text-4xl font-bold mb-4 text-gray-200">CS2 Case Opener</h1>
+    <p class="mb-8 text-gray-400">Click the button to open a "Revolution" case.</p>
+
+    <div class="case-container w-full max-w-6xl p-6 rounded-lg shadow-lg">
+        <div class="roulette-container mb-6">
+            <div class="ticker"></div>
+            <div id="roulette" class="roulette">
+                <!-- Items will be generated here by JavaScript -->
+            </div>
+        </div>
+        <div class="text-center">
+            <button id="open-case-btn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-8 rounded-lg text-xl transition duration-300 shadow-md">
+                Open Case
+            </button>
+        </div>
+    </div>
+
+    <!-- Winning Item Modal -->
+    <div id="win-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-3xl font-bold mb-2">You Unboxed:</h2>
+            <div id="modal-item-name" class="mb-1"></div>
+            <div id="modal-item-condition"></div>
+            <div id="modal-item-card-container"></div>
+            <button id="close-modal-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg mt-4">
+                Open Another
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const IMAGE_PATH = 'skins/';
+
+        const caseItems = [
+            // Covert (Red)
+            { name: "AK-47 | Head Shot", rarity: "Covert", image: "ak47_headshot.png" },
+            { name: "M4A4 | Temukau", rarity: "Covert", image: "m4a4_temukau.png" },
+            // Classified (Pink)
+            { name: "P2000 | Wicked Sick", rarity: "Classified", image: "p2000_wickedsick.png" },
+            { name: "AWP | Duality", rarity: "Classified", image: "awp_duality.png" },
+            { name: "UMP-45 | Wild Child", rarity: "Classified", image: "ump45_wildchild.png" },
+            // Restricted (Purple)
+            { name: "Glock-18 | Umbral Rabbit", rarity: "Restricted", image: "glock18_umbralrabbit.png" },
+            { name: "MAC-10 | Sakkaku", rarity: "Restricted", image: "mac10_sakkaku.png" },
+            { name: "P90 | Neoqueen", rarity: "Restricted", image: "p90_neoqueen.png" },
+            { name: "R8 Revolver | Banana Cannon", rarity: "Restricted", image: "r8_bananacannon.png" },
+            { name: "SG 553 | Cyberforce", rarity: "Restricted", image: "sg553_cyberforce.png" },
+            // Mil-Spec (Blue)
+            { name: "MAG-7 | Insomnia", rarity: "Mil-Spec", image: "mag7_insomnia.png" },
+            { name: "MP5-SD | Liquidation", rarity: "Mil-Spec", image: "mp5sd_liquidation.png" },
+            { name: "MP9 | Featherweight", rarity: "Mil-Spec", image: "mp9_featherweight.png" },
+            { name: "P250 | Re.built", rarity: "Mil-Spec", image: "p250_rebuilt.png" },
+            { name: "SCAR-20 | Fragments", rarity: "Mil-Spec", image: "scar20_fragments.png" },
+            { name: "Tec-9 | Rebel", rarity: "Mil-Spec", image: "tec9_rebel.png" },
+            { name: "M4A1-S | Emphorosaur-S", rarity: "Mil-Spec", image: "m4a1s_emphorosaur.png" },
+            // Rare Special Item (Gold)
+            { name: "★ Kukri Knife | Fade", rarity: "Rare", image: "kukri_fade.png" },
+            { name: "★ Kukri Knife | Slaughter", rarity: "Rare", image: "kukri_slaughter.png" },
+            { name: "★ Karambit | Doppler", rarity: "Rare", image: "karambit_doppler.png" },
+            { name: "★ M9 Bayonet | Tiger Tooth", rarity: "Rare", image: "m9_tiger_tooth.png" },
+            { name: "★ Butterfly Knife | Crimson Web", rarity: "Rare", image: "butterfly_crimson_web.png" }
+        ];
+
+        const rarityMap = {
+            "Mil-Spec": { class: "rarity-mil-spec", chance: 79.92 },
+            "Restricted": { class: "rarity-restricted", chance: 15.98 },
+            "Classified": { class: "rarity-classified", chance: 3.2 },
+            "Covert": { class: "rarity-covert", chance: 0.64 },
+            "Rare": { class: "rarity-rare", chance: 0.26 }
+        };
+
+        const conditions = ['Factory New', 'Minimal Wear', 'Field-Tested', 'Well-Worn', 'Battle-Scarred'];
+
+        const rouletteElement = document.getElementById('roulette');
+        const openCaseBtn = document.getElementById('open-case-btn');
+        const winModal = document.getElementById('win-modal');
+        const modalItemCardContainer = document.getElementById('modal-item-card-container');
+        const modalItemName = document.getElementById('modal-item-name');
+        const modalItemCondition = document.getElementById('modal-item-condition');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        let isSpinning = false;
+
+        function createItemCard(item) {
+            const rarityInfo = rarityMap[item.rarity];
+            const card = document.createElement('div');
+            card.className = `item-card rounded-lg m-2 ${rarityInfo.class}`;
+
+            const img = document.createElement('img');
+            img.src = IMAGE_PATH + item.image;
+            img.alt = item.name;
+            img.onerror = () => {
+                img.src = `https://placehold.co/150x120/1b2838/c7d5e0?text=${encodeURIComponent(item.name.replace('|', ''))}`;
+                img.alt = `${item.name} (Image not found)`;
+            };
+
+            const name = document.createElement('div');
+            name.className = 'item-card-name';
+            name.textContent = item.name;
+
+            const rarity = document.createElement('div');
+            rarity.className = 'item-card-rarity';
+            rarity.textContent = item.rarity;
+
+            card.appendChild(img);
+            card.appendChild(name);
+            card.appendChild(rarity);
+
+            return card;
+        }
+
+        function pickWinningItem() {
+            const totalChance = 100;
+            let random = Math.random() * totalChance;
+            let cumulativeChance = 0;
+            const sortedRarities = Object.keys(rarityMap).sort((a, b) => rarityMap[a].chance - rarityMap[b].chance);
+            for (const rarity of sortedRarities) {
+                cumulativeChance += rarityMap[rarity].chance;
+                if (random < cumulativeChance) {
+                    const itemsOfRarity = caseItems.filter(item => item.rarity === rarity);
+                    return itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
+                }
+            }
+            const milSpecItems = caseItems.filter(item => item.rarity === 'Mil-Spec');
+            return milSpecItems[Math.floor(Math.random() * milSpecItems.length)];
+        }
+        
+        // NEW: Function to pick only non-rare items for the roulette fillers
+        function pickNonRareItem() {
+            const nonRareItems = caseItems.filter(item => item.rarity !== 'Rare');
+            const nonRareRarityMap = { ...rarityMap };
+            delete nonRareRarityMap['Rare'];
+
+            const totalChance = Object.values(nonRareRarityMap).reduce((sum, rarity) => sum + rarity.chance, 0);
+            let random = Math.random() * totalChance;
+            let cumulativeChance = 0;
+
+            const sortedRarities = Object.keys(nonRareRarityMap).sort((a, b) => nonRareRarityMap[a].chance - nonRareRarityMap[b].chance);
+
+            for (const rarity of sortedRarities) {
+                cumulativeChance += nonRareRarityMap[rarity].chance;
+                if (random < cumulativeChance) {
+                    const itemsOfRarity = nonRareItems.filter(item => item.rarity === rarity);
+                    return itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
+                }
+            }
+            // Fallback
+            const milSpecItems = nonRareItems.filter(item => item.rarity === 'Mil-Spec');
+            return milSpecItems[Math.floor(Math.random() * milSpecItems.length)];
+        }
+
+
+        function startOpening() {
+            if (isSpinning) return;
+            isSpinning = true;
+            openCaseBtn.disabled = true;
+            openCaseBtn.textContent = 'Opening...';
+
+            rouletteElement.style.transition = 'none';
+            rouletteElement.style.transform = 'translateX(0)';
+            rouletteElement.innerHTML = '';
+
+            const winningItem = pickWinningItem();
+            let isStatTrak = false;
+            let itemCondition = null;
+
+            if (winningItem.rarity !== 'Rare') {
+                if (Math.random() < 0.1) {
+                    isStatTrak = true;
+                }
+                itemCondition = conditions[Math.floor(Math.random() * conditions.length)];
+            }
+
+            const rouletteItems = [];
+            const totalItemsInRoulette = 100;
+
+            // UPDATED: Populate roulette with the new logic
+            for (let i = 0; i < totalItemsInRoulette; i++) {
+                if (i === totalItemsInRoulette - 6) {
+                    // Place the actual winning item in its designated slot
+                    rouletteItems.push(winningItem);
+                } else {
+                    // All other "filler" items are guaranteed to not be rare.
+                    rouletteItems.push(pickNonRareItem());
+                }
+            }
+            
+            rouletteItems.forEach(item => {
+                rouletteElement.appendChild(createItemCard(item));
+            });
+
+            void rouletteElement.offsetWidth;
+
+            const itemWidth = 200 + 16;
+            const containerWidth = rouletteElement.parentElement.offsetWidth;
+            const targetPosition = (totalItemsInRoulette - 6) * itemWidth;
+            const offset = (containerWidth / 2) - (itemWidth / 2);
+            const jitter = (Math.random() - 0.5) * (itemWidth * 0.8);
+            const finalPosition = -(targetPosition - offset + jitter);
+
+            rouletteElement.style.transition = 'transform 7s cubic-bezier(0.1, 0.6, 0.2, 1)';
+            rouletteElement.style.transform = `translateX(${finalPosition}px)`;
+
+            setTimeout(() => {
+                showWinningModal(winningItem, isStatTrak, itemCondition);
+                isSpinning = false;
+                openCaseBtn.disabled = false;
+                openCaseBtn.textContent = 'Open Case';
+            }, 7500);
+        }
+        
+        function showWinningModal(item, isStatTrak, condition) {
+            modalItemName.textContent = (isStatTrak ? 'StatTrak™ ' : '') + item.name;
+            modalItemCondition.textContent = condition ? `(${condition})` : '';
+
+            const card = createItemCard(item);
+            modalItemCardContainer.innerHTML = '';
+            modalItemCardContainer.appendChild(card);
+            
+            winModal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            winModal.style.display = 'none';
+        }
+
+        function init() {
+            const placeholderItems = 10;
+            for (let i = 0; i < placeholderItems; i++) {
+                 rouletteElement.appendChild(createItemCard(pickNonRareItem()));
+            }
+        }
+
+        openCaseBtn.addEventListener('click', startOpening);
+        closeModalBtn.addEventListener('click', closeModal);
+        window.addEventListener('click', (event) => {
+            if (event.target == winModal) {
+                closeModal();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
