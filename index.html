@@ -127,7 +127,18 @@
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
     <h1 class="text-4xl font-bold mb-4 text-gray-200">CS2 Case Opener</h1>
-    <p class="mb-8 text-gray-400">Click the button to open a "Revolution" case.</p>
+    
+    <!-- Counters for cases opened and money spent -->
+    <div class="flex space-x-8 mb-8 text-lg text-gray-300">
+        <div>
+            <span class="font-bold">Cases Opened:</span>
+            <span id="cases-opened-counter">0</span>
+        </div>
+        <div>
+            <span class="font-bold">Total Spent (AUD):</span>
+            <span>$</span><span id="aud-spent-counter">0.00</span>
+        </div>
+    </div>
 
     <div class="case-container w-full max-w-6xl p-6 rounded-lg shadow-lg">
         <div class="roulette-container mb-6">
@@ -159,6 +170,7 @@
     <script>
         // --- CONFIGURATION ---
         const IMAGE_PATH = 'skins/';
+        const CASE_COST = 3.85; // AUD
 
         const caseItems = [
             // Covert (Red)
@@ -207,8 +219,11 @@
         const modalItemName = document.getElementById('modal-item-name');
         const modalItemCondition = document.getElementById('modal-item-condition');
         const closeModalBtn = document.getElementById('close-modal-btn');
+        const casesOpenedCounter = document.getElementById('cases-opened-counter');
+        const audSpentCounter = document.getElementById('aud-spent-counter');
 
         let isSpinning = false;
+        let casesOpened = 0;
 
         function createItemCard(item) {
             const rarityInfo = rarityMap[item.rarity];
@@ -254,7 +269,6 @@
             return milSpecItems[Math.floor(Math.random() * milSpecItems.length)];
         }
         
-        // NEW: Function to pick only non-rare items for the roulette fillers
         function pickNonRareItem() {
             const nonRareItems = caseItems.filter(item => item.rarity !== 'Rare');
             const nonRareRarityMap = { ...rarityMap };
@@ -273,7 +287,6 @@
                     return itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
                 }
             }
-            // Fallback
             const milSpecItems = nonRareItems.filter(item => item.rarity === 'Mil-Spec');
             return milSpecItems[Math.floor(Math.random() * milSpecItems.length)];
         }
@@ -281,6 +294,12 @@
 
         function startOpening() {
             if (isSpinning) return;
+
+            casesOpened++;
+            const totalSpent = casesOpened * CASE_COST;
+            casesOpenedCounter.textContent = casesOpened;
+            audSpentCounter.textContent = totalSpent.toFixed(2);
+
             isSpinning = true;
             openCaseBtn.disabled = true;
             openCaseBtn.textContent = 'Opening...';
@@ -303,13 +322,10 @@
             const rouletteItems = [];
             const totalItemsInRoulette = 100;
 
-            // UPDATED: Populate roulette with the new logic
             for (let i = 0; i < totalItemsInRoulette; i++) {
                 if (i === totalItemsInRoulette - 6) {
-                    // Place the actual winning item in its designated slot
                     rouletteItems.push(winningItem);
                 } else {
-                    // All other "filler" items are guaranteed to not be rare.
                     rouletteItems.push(pickNonRareItem());
                 }
             }
